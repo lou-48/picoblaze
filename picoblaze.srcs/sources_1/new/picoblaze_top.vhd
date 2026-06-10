@@ -11,6 +11,7 @@ entity picoblaze_top is
 end picoblaze_top;
 
 architecture Behavioral of picoblaze_top is
+-- Core
 signal address : std_logic_vector(11 downto 0);
 signal instruction : std_logic_vector(17 downto 0);
 signal bram_enable : std_logic;
@@ -24,7 +25,13 @@ Signal interrupt : std_logic;
 Signal interrupt_ack : std_logic;
 Signal kcpsm6_sleep : std_logic;
 Signal kcpsm6_reset : std_logic;
+Signal rdl : std_logic;
 
+-- Registers
+signal led_reg : std_logic_vector(15 downto 0);
+signal en_o : std_logic_vector(1 downto 0);
+
+-- Components
 component kcpsm6 is
     generic(               hwbuild : std_logic_vector(7 downto 0) := X"00";
                   interrupt_vector : std_logic_vector(11 downto 0) := X"3FF";
@@ -57,6 +64,8 @@ component picoblaze_rom is
 end component;
 
 begin
+kcpsm6_reset <= rdl or btnC;
+
 kcpsm6_core: kcpsm6
     generic map(hwbuild => X"00", 
             interrupt_vector => X"3FF", 
@@ -73,7 +82,7 @@ kcpsm6_core: kcpsm6
             interrupt => interrupt,
             interrupt_ack => interrupt_ack,
             sleep => '0',
-            reset => btnC,
+            reset => kcpsm6_reset,
             clk => clk);
             
 rom: picoblaze_rom
@@ -85,5 +94,34 @@ rom: picoblaze_rom
         enable => bram_enable,
         rdl => rdl,                    
         clk => clk);
+
+output_interface: process(write_strobe, k_write_strobe, port_id)
+begin
+    en_o <= (others => '0');
+    if (k_write_strobe = '1' or write_strobe = '1') then
+        case port_id is
+            when x"00" => en_o <= "01";
+            when x"01" => en_o <= "10";
+            when others => en_o <= "00";
+        end case;
+    end if;
+end process;
+
+input_interface: process(port_id, sw)
+begin
+    case port_id is
+        when x"00" => in_port <= sw(7 downto 0);
+        when x"01" => in_port <= sw(15 downto 8);
+        when others => in_port <= x"00";
+    end case;
+end process;
+
+registers: process(clk)
+begin
+    if (rising_edge(clk)) then
+        if (en_o(0) = '1') then led(7 downto 0) <= out_port; end if;
+        if (en_o(1) = '1') then led(15 downto 8) <= out_port; end if;
+    end if;
+end process;
 
 end Behavioral;

@@ -1,0 +1,16 @@
+               ; picoblaze main - v0.0
+               CONSTANT sw7_0_port, 00
+               CONSTANT sw15_8_port, 01
+               CONSTANT leds7_0_port, 00
+               CONSTANT leds15_8_port, 01
+         main: 
+               INPUT s0, sw7_0_port
+               INPUT s1, sw15_8_port
+               OUTPUT s0, leds7_0_port
+               OUTPUT s1, leds15_8_port
+               JUMP main
+error_handler: JUMP error_handler
+          isr: 
+               RETURNI ENABLE
+               ADDRESS 3FF
+               JUMP isr
