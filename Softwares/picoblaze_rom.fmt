@@ -1,16 +1,69 @@
-               ; picoblaze main - v0.0
-               CONSTANT sw7_0_port, 00
-               CONSTANT sw15_8_port, 01
-               CONSTANT leds7_0_port, 00
-               CONSTANT leds15_8_port, 01
-         main: 
-               INPUT s0, sw7_0_port
-               INPUT s1, sw15_8_port
-               OUTPUT s0, leds7_0_port
-               OUTPUT s1, leds15_8_port
-               JUMP main
-error_handler: JUMP error_handler
-          isr: 
-               RETURNI ENABLE
-               ADDRESS 3FF
-               JUMP isr
+                  ; picoblaze main - v0.0
+                  ; INPUT/OUTPUT ports
+                  CONSTANT sw7_0_port, 00
+                  CONSTANT sw15_8_port, 01
+                  CONSTANT leds7_0_port, 00
+                  CONSTANT leds15_8_port, 01
+                  CONSTANT rx_uart_port, 02
+                  CONSTANT tx_uart_port, 02
+                  CONSTANT status_uart_port, 03
+                  ; MASKS
+                  CONSTANT RX_EMPTY_UART, 01
+                  CONSTANT TX_FULL_UART, 02
+            main: 
+                  LOAD sA, hello_message'lower
+                  LOAD sB, hello_message'upper
+                  CALL send_string
+            loop: 
+                  CALL print_sw_on_leds
+                  CALL check_uart
+                  JUMP loop
+                  ; STRINGS
+                  CONSTANT LINE_FEED, 0A
+                  CONSTANT CARRIAGE_RET, 0D
+                  CONSTANT NULL, 00
+                  STRING Hello$, "Hello"
+   hello_message: 
+                  LOAD&RETURN s1, Hello$
+                  LOAD&RETURN s1, CARRIAGE_RET
+                  LOAD&RETURN s1, LINE_FEED
+                  LOAD&RETURN s1, NULL
+      check_uart: 
+                  INPUT s0, status_uart_port
+                  TEST s0, RX_EMPTY_UART
+                  RETURN NZ
+                  CALL read_uart
+                  RETURN 
+       read_uart: 
+                  INPUT s0, rx_uart_port
+                  COMPARE s0, 61
+                  RETURN NZ
+                  LOAD sA, hello_message'lower
+                  LOAD sB, hello_message'upper
+                  CALL send_string
+                  RETURN 
+       send_uart: 
+                  INPUT s0, status_uart_port
+                  TEST s0, TX_FULL_UART
+                  JUMP NZ, send_uart
+                  OUTPUT s1, tx_uart_port
+                  RETURN 
+     send_string: 
+                  CALL@ (sB, sA)
+                  COMPARE s1, NULL
+                  RETURN Z
+                  CALL send_uart
+                  ADD sA, 01
+                  ADDCY sB, 00
+                  JUMP send_string
+print_sw_on_leds: 
+                  INPUT s0, sw7_0_port
+                  INPUT s1, sw15_8_port
+                  OUTPUT s0, leds7_0_port
+                  OUTPUT s1, leds15_8_port
+                  RETURN 
+   error_handler: JUMP error_handler
+             isr: 
+                  RETURNI ENABLE
+                  ADDRESS 3FF
+                  JUMP isr

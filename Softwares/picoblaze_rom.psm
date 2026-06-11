@@ -1,26 +1,82 @@
 ; picoblaze main - v0.0
 
+; INPUT/OUTPUT ports
+constant sw7_0_port,		00
+constant sw15_8_port,		01
+constant leds7_0_port,		00
+constant leds15_8_port,		01
+constant rx_uart_port,		02
+constant tx_uart_port,		02
+constant status_uart_port,	03
 
-constant sw7_0_port,	00
-constant sw15_8_port,	01
-constant leds7_0_port,	00
-constant leds15_8_port,	01
+; MASKS
+constant RX_EMPTY_UART,		01
+constant TX_FULL_UART,		02
 
 main:
+	load sA, hello_message'lower
+	load sB, hello_message'upper
+	call send_string
+loop:
+	call print_sw_on_leds
+	call check_uart
+	jump loop
+
+
+
+; STRINGS
+constant LINE_FEED,		0A
+constant CARRIAGE_RET,	0D
+constant NULL		,	00
+
+STRING Hello$, "Hello"
+hello_message:
+	load&return s1, Hello$
+	load&return s1, CARRIAGE_RET
+	load&return s1, LINE_FEED
+	load&return s1, NULL
+
+check_uart:
+	input s0, status_uart_port
+	test s0, RX_EMPTY_UART
+	return nz
+	call read_uart
+	return
+
+read_uart:
+	input s0, rx_uart_port
+	compare s0, 61
+	return nz
+	load sA, hello_message'lower
+	load sB, hello_message'upper
+	call send_string
+	return
+
+send_uart: 
+	input s0, status_uart_port
+	test s0, TX_FULL_UART
+	jump nz, send_uart
+	output s1, tx_uart_port
+	return
+
+send_string:
+	call@ (sB, sA)
+	compare s1, NULL
+	return z
+	call send_uart
+	add sA, 01
+	addcy sB, 00
+	jump send_string
+
+	
+
+
+print_sw_on_leds:
 	input s0, sw7_0_port
 	input s1, sw15_8_port
 	output s0, leds7_0_port
 	output s1, leds15_8_port
-	jump main
-
-
-
-
-
-
-
-
-
+	return
 
 
 
