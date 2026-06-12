@@ -64,17 +64,6 @@ component uart_rx is
     ); 
 end component;
 
-component flag_buf is
-    generic (W: integer := 8) ;
-    port(
-        clk, reset: in std_logic;
-        clr_flag, set_flag : in std_logic;
-        din: in std_logic_vector(W-1 downto 0);
-        dout : out std_logic_vector(W-1 downto 0);
-        flag: out std_logic
-    );
-end component;
-
 component fifo is
     generic(
         B: natural := 8; -- number of bits

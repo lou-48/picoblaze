@@ -34,7 +34,7 @@ signal led_reg : std_logic_vector(15 downto 0);
 signal en_o : std_logic_vector(2 downto 0);
 
 -- Uart
-signal w_data, r_data : std_logic_vector(7 downto 0);
+signal r_data : std_logic_vector(7 downto 0);
 signal rd_uart, rx_not_empty, rx_empty : std_logic;
 signal wr_uart, tx_full : std_logic;
 
@@ -146,7 +146,7 @@ uart_interface: uart
         rd_uart => rd_uart, 
         wr_uart => wr_uart,
         rx => rsRx, 
-        w_data => w_data,
+        w_data => out_port,
         tx_full => tx_full, 
         rx_empty => rx_empty,
         r_data => r_data,
@@ -184,7 +184,6 @@ begin
     if (rising_edge(clk)) then
         if (en_o(0) = '1') then led(7 downto 0) <= out_port; end if;
         if (en_o(1) = '1') then led(15 downto 8) <= out_port; end if;
-        if (en_o(2) = '1') then w_data <= out_port; end if;
     end if;
 end process;
 

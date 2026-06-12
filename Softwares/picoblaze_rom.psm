@@ -68,9 +68,6 @@ send_string:
 	addcy sB, 00
 	jump send_string
 
-	
-
-
 print_sw_on_leds:
 	input s0, sw7_0_port
 	input s1, sw15_8_port
