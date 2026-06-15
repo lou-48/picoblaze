@@ -16,13 +16,19 @@ constant 7seg_msb_port,		04
 ; MASKS
 constant RX_EMPTY_UART,		01
 constant TX_FULL_UART,		02
+constant MODE_SEL,			80
 
 main:
 	load sA, hello_message'lower
 	load sB, hello_message'upper
 	call send_string
+	load sE, 00
+	load sF, 00
 loop:
-	call print_sw
+	input s1, sw15_8_port
+	test s1, MODE_SEL
+	call nz, print_counter
+	call z, print_sw
 	call check_uart
 	jump loop
 
@@ -73,6 +79,7 @@ send_string:
 	jump send_string
 
 print_sw:
+	disable interrupt
 	input s0, sw7_0_port
 	input s1, sw15_8_port
 	output s0, leds7_0_port
@@ -81,19 +88,22 @@ print_sw:
 	output s1, 7seg_msb_port
 	return
 
-
-
-
-
-
-
+print_counter:
+	enable interrupt
+	output sE, leds7_0_port
+	output sF, leds15_8_port
+	output sE, 7seg_lsb_port
+	output sF, 7seg_msb_port
+	return
 
 
 error_handler: jump error_handler
 
 
 isr:
-	returni enable
+	add sE, 01
+	addcy sF, 00
+	returni disable
 
 
 address 3FF

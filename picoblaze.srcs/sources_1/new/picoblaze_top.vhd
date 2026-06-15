@@ -46,6 +46,9 @@ signal wr_uart, tx_full : std_logic;
 -- 7seg
 signal bin_7seg_reg : std_logic_vector(13 downto 0);
 
+-- Interrupts
+signal timer_int : std_logic;
+
 -- Components
 component kcpsm6 is
     generic(               hwbuild : std_logic_vector(7 downto 0) := X"00";
@@ -112,9 +115,30 @@ component seg7 is
     );
 end component;
 
+component mod_m_counter is
+    generic(
+        N: integer := 4; -- number of bits
+        M: integer := 10 -- mod4
+    );
+    port (
+        clk, reset: in std_logic;
+        max_tick: out std_logic;
+        q: out std_logic_vector (N-1 downto 0)
+    ); 
+end component;
+
+component flag_buf is
+    port(
+        clk, reset: in std_logic;
+        clr_flag : in std_logic;
+        D : in std_logic;
+        Q : out std_logic
+    );
+end component;
+
+
 begin
 kcpsm6_reset <= rdl or btnC;
-interrupt <= '0';
 
 kcpsm6_core: kcpsm6
     generic map(hwbuild => X"00", 
@@ -180,6 +204,27 @@ segment : seg7
         dp => dp,
         an => an,
         seg => seg
+    );
+
+timer : mod_m_counter
+    generic map(
+        N => 27,
+        M => 100000000
+    )
+    port map(
+        clk => clk,
+        reset => kcpsm6_reset,
+        max_tick => timer_int,
+        q => open
+    );
+    
+closed_loop_interrupt : flag_buf
+    port map(
+        clk => clk,
+        reset => kcpsm6_reset,
+        clr_flag => interrupt_ack,
+        D => timer_int,
+        Q => interrupt
     );
 
 output_interface: process(write_strobe, k_write_strobe, port_id)

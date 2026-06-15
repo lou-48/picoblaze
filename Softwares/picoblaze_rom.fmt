@@ -13,12 +13,18 @@
                ; MASKS
                CONSTANT RX_EMPTY_UART, 01
                CONSTANT TX_FULL_UART, 02
+               CONSTANT MODE_SEL, 80
          main: 
                LOAD sA, hello_message'lower
                LOAD sB, hello_message'upper
                CALL send_string
+               LOAD sE, 00
+               LOAD sF, 00
          loop: 
-               CALL print_sw
+               INPUT s1, sw15_8_port
+               TEST s1, MODE_SEL
+               CALL NZ, print_counter
+               CALL Z, print_sw
                CALL check_uart
                JUMP loop
                ; STRINGS
@@ -60,6 +66,7 @@ hello_message:
                ADDCY sB, 00
                JUMP send_string
      print_sw: 
+               DISABLE INTERRUPT
                INPUT s0, sw7_0_port
                INPUT s1, sw15_8_port
                OUTPUT s0, leds7_0_port
@@ -67,8 +74,17 @@ hello_message:
                OUTPUT s0, 7seg_lsb_port
                OUTPUT s1, 7seg_msb_port
                RETURN 
+print_counter: 
+               ENABLE INTERRUPT
+               OUTPUT sE, leds7_0_port
+               OUTPUT sF, leds15_8_port
+               OUTPUT sE, 7seg_lsb_port
+               OUTPUT sF, 7seg_msb_port
+               RETURN 
 error_handler: JUMP error_handler
           isr: 
-               RETURNI ENABLE
+               ADD sE, 01
+               ADDCY sF, 00
+               RETURNI DISABLE
                ADDRESS 3FF
                JUMP isr
