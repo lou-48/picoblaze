@@ -1,13 +1,17 @@
 ; picoblaze main - v0.0
 
-; INPUT/OUTPUT ports
+; INPUT ports
 constant sw7_0_port,		00
 constant sw15_8_port,		01
+constant rx_uart_port,		02
+constant status_uart_port,	03
+
+; OUTPUT ports
 constant leds7_0_port,		00
 constant leds15_8_port,		01
-constant rx_uart_port,		02
 constant tx_uart_port,		02
-constant status_uart_port,	03
+constant 7seg_lsb_port,		03
+constant 7seg_msb_port,		04
 
 ; MASKS
 constant RX_EMPTY_UART,		01
@@ -18,7 +22,7 @@ main:
 	load sB, hello_message'upper
 	call send_string
 loop:
-	call print_sw_on_leds
+	call print_sw
 	call check_uart
 	jump loop
 
@@ -68,11 +72,13 @@ send_string:
 	addcy sB, 00
 	jump send_string
 
-print_sw_on_leds:
+print_sw:
 	input s0, sw7_0_port
 	input s1, sw15_8_port
 	output s0, leds7_0_port
 	output s1, leds15_8_port
+	output s0, 7seg_lsb_port
+	output s1, 7seg_msb_port
 	return
 
 

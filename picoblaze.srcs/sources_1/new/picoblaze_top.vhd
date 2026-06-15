@@ -7,6 +7,9 @@ entity picoblaze_top is
         btnC, btnU, btnL, btnR, btnD : in std_logic;
         sw : in std_logic_vector(15 downto 0);
         led : out std_logic_vector(15 downto 0);
+        dp : out std_logic;
+        an : out std_logic_vector(3 downto 0);
+        seg : out std_logic_vector(6 downto 0);
         rsRx : in std_logic;
         rsTx : out std_logic
     );
@@ -30,13 +33,18 @@ Signal kcpsm6_reset : std_logic;
 Signal rdl : std_logic;
 
 -- Registers
+signal en_o : std_logic_vector(4 downto 0);
+
+-- Leds
 signal led_reg : std_logic_vector(15 downto 0);
-signal en_o : std_logic_vector(2 downto 0);
 
 -- Uart
 signal r_data : std_logic_vector(7 downto 0);
 signal rd_uart, rx_not_empty, rx_empty : std_logic;
 signal wr_uart, tx_full : std_logic;
+
+-- 7seg
+signal bin_7seg_reg : std_logic_vector(13 downto 0);
 
 -- Components
 component kcpsm6 is
@@ -92,6 +100,16 @@ component uart is
         r_data: out std_logic_vector(7 downto 0);
         tx: out std_logic
     ); 
+end component;
+
+component seg7 is
+    port (
+        clk, reset : in std_logic;
+        value : in std_logic_vector(13 downto 0);
+        dp : out std_logic;
+        an : out std_logic_vector(3 downto 0);
+        seg : out std_logic_vector(6 downto 0)
+    );
 end component;
 
 begin
@@ -154,15 +172,27 @@ uart_interface: uart
     );
 rd_uart <= '1' when read_strobe = '1' and port_id = x"02" else '0';
 
+segment : seg7
+    port map(
+        clk => clk, 
+        reset => kcpsm6_reset,
+        value => bin_7seg_reg,
+        dp => dp,
+        an => an,
+        seg => seg
+    );
+
 output_interface: process(write_strobe, k_write_strobe, port_id)
 begin
     en_o <= (others => '0');
     if (k_write_strobe = '1' or write_strobe = '1') then
         case port_id is
-            when x"00" => en_o <= "001";
-            when x"01" => en_o <= "010";
-            when x"02" => en_o <= "100";
-            when others => en_o <= "000";
+            when x"00" => en_o <= "00001"; -- led 7-0
+            when x"01" => en_o <= "00010"; -- led 15-8
+            when x"02" => en_o <= "00100"; -- tx uart
+            when x"03" => en_o <= "01000"; -- 7seg LSB
+            when x"04" => en_o <= "10000"; -- 7seg MSB
+            when others => en_o <= "00000";
         end case;
     end if;
 end process;
@@ -184,6 +214,8 @@ begin
     if (rising_edge(clk)) then
         if (en_o(0) = '1') then led(7 downto 0) <= out_port; end if;
         if (en_o(1) = '1') then led(15 downto 8) <= out_port; end if;
+        if (en_o(3) = '1') then bin_7seg_reg(7 downto 0) <= out_port; end if;
+        if (en_o(4) = '1') then bin_7seg_reg(13 downto 8) <= out_port(5 downto 0); end if;
     end if;
 end process;
 
