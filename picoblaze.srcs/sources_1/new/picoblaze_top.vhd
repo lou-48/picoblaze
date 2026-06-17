@@ -32,6 +32,9 @@ Signal kcpsm6_sleep : std_logic;
 Signal kcpsm6_reset : std_logic;
 Signal rdl : std_logic;
 
+-- Debounce
+signal btnC_db, btnU_db, btnL_db, btnR_db, btnD_db : std_logic;
+
 -- Registers
 signal en_o : std_logic_vector(4 downto 0);
 
@@ -79,6 +82,17 @@ component picoblaze_rom is
         enable : in std_logic;
         rdl : out std_logic;                    
         clk : in std_logic);
+end component;
+
+component debouncer is
+    generic(
+        delay : integer := 1000000
+    );
+    port(
+        clk : in std_logic;
+        button : std_logic;
+        debounce : std_logic
+    );
 end component;
 
 component uart is
@@ -138,7 +152,7 @@ end component;
 
 
 begin
-kcpsm6_reset <= rdl or btnC;
+kcpsm6_reset <= rdl or btnC_db;
 
 kcpsm6_core: kcpsm6
     generic map(hwbuild => X"00", 
@@ -168,6 +182,56 @@ rom: picoblaze_rom
         enable => bram_enable,
         rdl => rdl,                    
         clk => clk);
+        
+db_btnC: debouncer
+    generic map(
+        delay => 1000000
+    )
+    port map(
+        clk => clk,
+        button => btnC,
+        debounce => btnC_db
+    );
+
+db_btnU: debouncer
+    generic map(
+        delay => 1000000
+    )
+    port map(
+        clk => clk,
+        button => btnU,
+        debounce => btnU_db
+    );
+
+db_btnL: debouncer
+    generic map(
+        delay => 1000000
+    )
+    port map(
+        clk => clk,
+        button => btnL,
+        debounce => btnL_db
+    );
+
+db_btnR: debouncer
+    generic map(
+        delay => 1000000
+    )
+    port map(
+        clk => clk,
+        button => btnR,
+        debounce => btnR_db
+    );
+
+db_btnD: debouncer
+    generic map(
+        delay => 1000000
+    )
+    port map(
+        clk => clk,
+        button => btnD,
+        debounce => btnD_db
+    );
 
 uart_interface: uart
     generic map(
