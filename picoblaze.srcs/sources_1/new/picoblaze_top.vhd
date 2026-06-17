@@ -90,8 +90,8 @@ component debouncer is
     );
     port(
         clk : in std_logic;
-        button : std_logic;
-        debounce : std_logic
+        button : in std_logic;
+        debounce : out std_logic
     );
 end component;
 
