@@ -72,4 +72,8 @@ xvlog.*
 ## checkpoint files
 *.dcp
 
-
+## PicoBlaze asm
+*.fmt
+*.hex
+*.vhd
+KCPSM6_session_log.txt
