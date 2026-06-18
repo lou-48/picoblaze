@@ -36,7 +36,7 @@ Signal rdl : std_logic;
 signal btnC_db, btnU_db, btnL_db, btnR_db, btnD_db : std_logic;
 
 -- Registers
-signal en_o : std_logic_vector(4 downto 0);
+signal en_o : std_logic_vector(9 downto 0);
 
 -- Leds
 signal led_reg : std_logic_vector(15 downto 0);
@@ -51,6 +51,11 @@ signal bin_7seg_reg : std_logic_vector(13 downto 0);
 
 -- Interrupts
 signal timer_int : std_logic;
+
+-- Timer
+signal tim0_conf : std_logic_vector(7 downto 0);
+signal tim0_preload : std_logic_vector(31 downto 0);
+signal tim0_counter : std_logic_vector(31 downto 0);
 
 -- Components
 component kcpsm6 is
@@ -129,16 +134,14 @@ component seg7 is
     );
 end component;
 
-component mod_m_counter is
-    generic(
-        N: integer := 4; -- number of bits
-        M: integer := 10 -- mod4
-    );
-    port (
+component timer is
+    port(
         clk, reset: in std_logic;
-        max_tick: out std_logic;
-        q: out std_logic_vector (N-1 downto 0)
-    ); 
+        config_r : in std_logic_vector(7 downto 0);
+        preload_r : in std_logic_vector(31 downto 0);
+        counter_r : out std_logic_vector(31 downto 0);
+        interrupt_flag : out std_logic
+    );
 end component;
 
 component flag_buf is
@@ -176,7 +179,7 @@ kcpsm6_core: kcpsm6
 rom: picoblaze_rom
     generic map(C_FAMILY => "7S",
             C_RAM_SIZE_KWORDS => 1,
-            C_JTAG_LOADER_ENABLE => 1)
+            C_JTAG_LOADER_ENABLE => 0)
     port map(address => address,
         instruction => instruction,
         enable => bram_enable,
@@ -270,16 +273,14 @@ segment : seg7
         seg => seg
     );
 
-timer : mod_m_counter
-    generic map(
-        N => 27,
-        M => 100000000
-    )
+tim0 : timer
     port map(
         clk => clk,
         reset => kcpsm6_reset,
-        max_tick => timer_int,
-        q => open
+        config_r => tim0_conf,
+        preload_r => tim0_preload,
+        counter_r => tim0_counter,
+        interrupt_flag => timer_int
     );
     
 closed_loop_interrupt : flag_buf
@@ -294,26 +295,49 @@ closed_loop_interrupt : flag_buf
 output_interface: process(write_strobe, k_write_strobe, port_id)
 begin
     en_o <= (others => '0');
-    if (k_write_strobe = '1' or write_strobe = '1') then
+    if (k_write_strobe = '1') then
+        case port_id(3 downto 0) is
+            when x"0" => en_o <= "0000000001"; -- led 7-0
+            when x"1" => en_o <= "0000000010"; -- led 15-8
+            when x"2" => en_o <= "0000000100"; -- tx uart
+            when x"3" => en_o <= "0000001000"; -- 7seg LSB
+            when x"4" => en_o <= "0000010000"; -- 7seg MSB
+            when x"5" => en_o <= "0000100000"; -- tim0 config
+            when x"6" => en_o <= "0001000000"; -- tim0 preload B0 (LSB)
+            when x"7" => en_o <= "0010000000"; -- tim0 preload B1
+            when x"8" => en_o <= "0100000000"; -- tim0 preload B2
+            when x"9" => en_o <= "1000000000"; -- tim0 preload B3 (MSB)
+            when others => en_o <= "0000000000";
+        end case;
+    elsif (write_strobe = '1') then
         case port_id is
-            when x"00" => en_o <= "00001"; -- led 7-0
-            when x"01" => en_o <= "00010"; -- led 15-8
-            when x"02" => en_o <= "00100"; -- tx uart
-            when x"03" => en_o <= "01000"; -- 7seg LSB
-            when x"04" => en_o <= "10000"; -- 7seg MSB
-            when others => en_o <= "00000";
+            when x"00" => en_o <= "0000000001"; -- led 7-0
+            when x"01" => en_o <= "0000000010"; -- led 15-8
+            when x"02" => en_o <= "0000000100"; -- tx uart
+            when x"03" => en_o <= "0000001000"; -- 7seg LSB
+            when x"04" => en_o <= "0000010000"; -- 7seg MSB
+            when x"05" => en_o <= "0000100000"; -- tim0 config
+            when x"06" => en_o <= "0001000000"; -- tim0 preload B0 (LSB)
+            when x"07" => en_o <= "0010000000"; -- tim0 preload B1
+            when x"08" => en_o <= "0100000000"; -- tim0 preload B2
+            when x"09" => en_o <= "1000000000"; -- tim0 preload B3 (MSB)
+            when others => en_o <= "0000000000";
         end case;
     end if;
 end process;
 wr_uart <= en_o(2);
 
-input_interface: process(port_id, sw, r_data, tx_full, rx_empty)
+input_interface: process(port_id, sw, r_data, tx_full, rx_empty, tim0_counter)
 begin
     case port_id is
         when x"00" => in_port <= sw(7 downto 0);
         when x"01" => in_port <= sw(15 downto 8);
         when x"02" => in_port <= r_data;
         when x"03" => in_port <= "000000" & tx_full & rx_empty;
+        when x"04" => in_port <= tim0_counter(7 downto 0);
+        when x"05" => in_port <= tim0_counter(15 downto 8);
+        when x"06" => in_port <= tim0_counter(23 downto 16);
+        when x"07" => in_port <= tim0_counter(31 downto 24);
         when others => in_port <= x"00";
     end case;
 end process;
@@ -325,6 +349,11 @@ begin
         if (en_o(1) = '1') then led(15 downto 8) <= out_port; end if;
         if (en_o(3) = '1') then bin_7seg_reg(7 downto 0) <= out_port; end if;
         if (en_o(4) = '1') then bin_7seg_reg(13 downto 8) <= out_port(5 downto 0); end if;
+        if (en_o(5) = '1') then tim0_conf <= out_port; end if;
+        if (en_o(6) = '1') then tim0_preload(7 downto 0) <= out_port; end if;
+        if (en_o(7) = '1') then tim0_preload(15 downto 8) <= out_port; end if;
+        if (en_o(8) = '1') then tim0_preload(23 downto 16) <= out_port; end if;
+        if (en_o(9) = '1') then tim0_preload(31 downto 24) <= out_port; end if;
     end if;
 end process;
 

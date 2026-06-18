@@ -1,29 +1,55 @@
 ; picoblaze main - v0.0
 
 ; INPUT ports
-constant sw7_0_port,		00
-constant sw15_8_port,		01
-constant rx_uart_port,		02
-constant status_uart_port,	03
+constant sw7_0_port,			00
+constant sw15_8_port,			01
+constant rx_uart_port,			02
+constant status_uart_port,		03
+constant tim0_counter_b0_port,	04 ; LSB
+constant tim0_counter_b1_port,	05
+constant tim0_counter_b2_port,	06
+constant tim0_counter_b3_port,	07 ; MSB
 
 ; OUTPUT ports
-constant leds7_0_port,		00
-constant leds15_8_port,		01
-constant tx_uart_port,		02
-constant 7seg_lsb_port,		03
-constant 7seg_msb_port,		04
+constant leds7_0_port,			00
+constant leds15_8_port,			01
+constant tx_uart_port,			02
+constant 7seg_lsb_port,			03
+constant 7seg_msb_port,			04
+constant tim0_config_port,		05
+constant tim0_preload_b0_port,	06 ; LSB
+constant tim0_preload_b1_port,	07
+constant tim0_preload_b2_port,	08
+constant tim0_preload_b3_port,	09 ; MSB
 
 ; MASKS
-constant RX_EMPTY_UART,		01
-constant TX_FULL_UART,		02
-constant MODE_SEL,			80
+constant RX_EMPTY_UART,			01
+constant TX_FULL_UART,			02
+constant MODE_SEL,				80
+constant TIM0_EN,				01
+constant TIM0_INT_EN,			02
+constant TIM0_PRESCALER_MASK,	F0
+constant TIM0_config,			03 ; prescaler = 1, INT = ON, EN = ON
+constant TIM0_preload_b0,		FF ; equivalent to 99_999_999 in decimal @ 100MHz -> tick = 1s
+constant TIM0_preload_b1,		E0
+constant TIM0_preload_b2,		F5
+constant TIM0_preload_b3,		05
+
+; NAMEREGS
+namereg sE, counter_lsb
+namereg sF, counter_msb
 
 main:
 	load sA, hello_message'lower
 	load sB, hello_message'upper
 	call send_string
-	load sE, 00
-	load sF, 00
+	outputk TIM0_preload_b0, tim0_preload_b0_port
+	outputk TIM0_preload_b1, tim0_preload_b1_port
+	outputk TIM0_preload_b2, tim0_preload_b2_port
+	outputk TIM0_preload_b3, tim0_preload_b3_port
+	outputk TIM0_config, tim0_config_port
+	load counter_lsb, 00
+	load counter_msb, 00
 loop:
 	input s1, sw15_8_port
 	test s1, MODE_SEL
@@ -90,10 +116,10 @@ print_sw:
 
 print_counter:
 	enable interrupt
-	output sE, leds7_0_port
-	output sF, leds15_8_port
-	output sE, 7seg_lsb_port
-	output sF, 7seg_msb_port
+	output counter_lsb, leds7_0_port
+	output counter_msb, leds15_8_port
+	output counter_lsb, 7seg_lsb_port
+	output counter_msb, 7seg_msb_port
 	return
 
 
@@ -101,8 +127,8 @@ error_handler: jump error_handler
 
 
 isr:
-	add sE, 01
-	addcy sF, 00
+	add counter_lsb, 01
+	addcy counter_msb, 00
 	returni disable
 
 

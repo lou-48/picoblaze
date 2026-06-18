@@ -39,12 +39,7 @@ end process;
 process
 begin
     btnC <= '1';
-    wait for 50ns;
-    btnC <= '0';
-    wait for 1000ms;
-    wait for 50ns;
-    btnC <= '1';
-    wait for 50ns;
+    wait for 11ms;
     btnC <= '0';
     wait;
 end process;
