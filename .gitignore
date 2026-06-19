@@ -75,5 +75,5 @@ xvlog.*
 ## PicoBlaze asm
 *.fmt
 *.hex
-*.vhd
+Softwares/*.vhd
 KCPSM6_session_log.txt

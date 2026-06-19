@@ -32,11 +32,14 @@ Signal kcpsm6_sleep : std_logic;
 Signal kcpsm6_reset : std_logic;
 Signal rdl : std_logic;
 
+Signal decode_port_id : std_logic_vector(7 downto 0);
+Signal w_strobe : std_logic;
+
 -- Debounce
 signal btnC_db, btnU_db, btnL_db, btnR_db, btnD_db : std_logic;
 
 -- Registers
-signal en_o : std_logic_vector(9 downto 0);
+signal en_o : std_logic_vector(4 downto 0);
 
 -- Leds
 signal led_reg : std_logic_vector(15 downto 0);
@@ -53,8 +56,6 @@ signal bin_7seg_reg : std_logic_vector(13 downto 0);
 signal timer_int : std_logic;
 
 -- Timer
-signal tim0_conf : std_logic_vector(7 downto 0);
-signal tim0_preload : std_logic_vector(31 downto 0);
 signal tim0_counter : std_logic_vector(31 downto 0);
 
 -- Components
@@ -136,9 +137,9 @@ end component;
 
 component timer is
     port(
-        clk, reset: in std_logic;
-        config_r : in std_logic_vector(7 downto 0);
-        preload_r : in std_logic_vector(31 downto 0);
+        clk, reset : in std_logic;
+        w_strobe : in std_logic;
+        port_id, out_port : in std_logic_vector(7 downto 0);
         counter_r : out std_logic_vector(31 downto 0);
         interrupt_flag : out std_logic
     );
@@ -277,12 +278,13 @@ tim0 : timer
     port map(
         clk => clk,
         reset => kcpsm6_reset,
-        config_r => tim0_conf,
-        preload_r => tim0_preload,
+        w_strobe => w_strobe,
+        port_id => decode_port_id,
+        out_port => out_port,
         counter_r => tim0_counter,
         interrupt_flag => timer_int
     );
-    
+
 closed_loop_interrupt : flag_buf
     port map(
         clk => clk,
@@ -292,36 +294,19 @@ closed_loop_interrupt : flag_buf
         Q => interrupt
     );
 
-output_interface: process(write_strobe, k_write_strobe, port_id)
+decode_port_id <= port_id when write_strobe = '1' else x"0" & port_id(3 downto 0) when k_write_strobe = '1' else x"00";
+w_strobe <= k_write_strobe or write_strobe;
+output_interface: process(w_strobe, decode_port_id)
 begin
     en_o <= (others => '0');
-    if (k_write_strobe = '1') then
-        case port_id(3 downto 0) is
-            when x"0" => en_o <= "0000000001"; -- led 7-0
-            when x"1" => en_o <= "0000000010"; -- led 15-8
-            when x"2" => en_o <= "0000000100"; -- tx uart
-            when x"3" => en_o <= "0000001000"; -- 7seg LSB
-            when x"4" => en_o <= "0000010000"; -- 7seg MSB
-            when x"5" => en_o <= "0000100000"; -- tim0 config
-            when x"6" => en_o <= "0001000000"; -- tim0 preload B0 (LSB)
-            when x"7" => en_o <= "0010000000"; -- tim0 preload B1
-            when x"8" => en_o <= "0100000000"; -- tim0 preload B2
-            when x"9" => en_o <= "1000000000"; -- tim0 preload B3 (MSB)
-            when others => en_o <= "0000000000";
-        end case;
-    elsif (write_strobe = '1') then
-        case port_id is
-            when x"00" => en_o <= "0000000001"; -- led 7-0
-            when x"01" => en_o <= "0000000010"; -- led 15-8
-            when x"02" => en_o <= "0000000100"; -- tx uart
-            when x"03" => en_o <= "0000001000"; -- 7seg LSB
-            when x"04" => en_o <= "0000010000"; -- 7seg MSB
-            when x"05" => en_o <= "0000100000"; -- tim0 config
-            when x"06" => en_o <= "0001000000"; -- tim0 preload B0 (LSB)
-            when x"07" => en_o <= "0010000000"; -- tim0 preload B1
-            when x"08" => en_o <= "0100000000"; -- tim0 preload B2
-            when x"09" => en_o <= "1000000000"; -- tim0 preload B3 (MSB)
-            when others => en_o <= "0000000000";
+    if (w_strobe = '1') then
+        case decode_port_id is
+            when x"00" => en_o <= "00001"; -- led 7-0
+            when x"01" => en_o <= "00010"; -- led 15-8
+            when x"02" => en_o <= "00100"; -- tx uart
+            when x"03" => en_o <= "01000"; -- 7seg LSB
+            when x"04" => en_o <= "10000"; -- 7seg MSB
+            when others => en_o <= "00000";
         end case;
     end if;
 end process;
@@ -349,11 +334,6 @@ begin
         if (en_o(1) = '1') then led(15 downto 8) <= out_port; end if;
         if (en_o(3) = '1') then bin_7seg_reg(7 downto 0) <= out_port; end if;
         if (en_o(4) = '1') then bin_7seg_reg(13 downto 8) <= out_port(5 downto 0); end if;
-        if (en_o(5) = '1') then tim0_conf <= out_port; end if;
-        if (en_o(6) = '1') then tim0_preload(7 downto 0) <= out_port; end if;
-        if (en_o(7) = '1') then tim0_preload(15 downto 8) <= out_port; end if;
-        if (en_o(8) = '1') then tim0_preload(23 downto 16) <= out_port; end if;
-        if (en_o(9) = '1') then tim0_preload(31 downto 24) <= out_port; end if;
     end if;
 end process;
 

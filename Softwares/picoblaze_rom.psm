@@ -29,11 +29,12 @@ constant MODE_SEL,				80
 constant TIM0_EN,				01
 constant TIM0_INT_EN,			02
 constant TIM0_PRESCALER_MASK,	F0
-constant TIM0_config,			03 ; prescaler = 1, INT = ON, EN = ON
+constant TIM0_config,			07 ; prescaler = 1, ARR = ON, INT = ON, EN = ON
 constant TIM0_preload_b0,		FF ; equivalent to 99_999_999 in decimal @ 100MHz -> tick = 1s
 constant TIM0_preload_b1,		E0
 constant TIM0_preload_b2,		F5
 constant TIM0_preload_b3,		05
+
 
 ; NAMEREGS
 namereg sE, counter_lsb
