@@ -9,6 +9,8 @@ constant tim0_counter_b0_port,	04 ; LSB
 constant tim0_counter_b1_port,	05
 constant tim0_counter_b2_port,	06
 constant tim0_counter_b3_port,	07 ; MSB
+constant spi0_busy_port,		08
+constant spi0_rx_port,			09 
 
 ; OUTPUT ports
 constant leds7_0_port,			00
@@ -21,6 +23,8 @@ constant tim0_preload_b0_port,	06 ; LSB
 constant tim0_preload_b1_port,	07
 constant tim0_preload_b2_port,	08
 constant tim0_preload_b3_port,	09 ; MSB
+constant spi_config_port,		0A
+constant spi_tx_port,			0B
 
 ; MASKS
 constant RX_EMPTY_UART,			01
@@ -34,6 +38,7 @@ constant TIM0_preload_b0,		FF ; equivalent to 99_999_999 in decimal @ 100MHz -> 
 constant TIM0_preload_b1,		E0
 constant TIM0_preload_b2,		F5
 constant TIM0_preload_b3,		05
+constant SPI0_BUSY,				01
 
 
 ; NAMEREGS
@@ -41,6 +46,15 @@ namereg sE, counter_lsb
 namereg sF, counter_msb
 
 main:
+	outputk 5A, spi_tx_port
+	outputk 01, spi_config_port
+spi_r:
+	input s0, spi0_busy_port
+	test s0, SPI0_BUSY
+	jump nz, spi_r
+	input s1, spi0_rx_port
+	call send_uart
+	outputk 00, spi_config_port
 	load sA, hello_message'lower
 	load sB, hello_message'upper
 	call send_string

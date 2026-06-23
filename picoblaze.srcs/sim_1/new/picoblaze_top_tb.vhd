@@ -14,6 +14,8 @@ signal an : std_logic_vector(3 downto 0);
 signal seg : std_logic_vector(6 downto 0);
 signal rsRx :  std_logic;
 signal rsTx :  std_logic;
+signal miso: std_logic;
+signal mosi, sclk, ss_n : std_logic;
 
 component picoblaze_top is
     port(
@@ -21,16 +23,22 @@ component picoblaze_top is
         btnC, btnU, btnL, btnR, btnD : in std_logic;
         sw : in std_logic_vector(15 downto 0);
         led : out std_logic_vector(15 downto 0);
+        --7seg
         dp : out std_logic;
         an : out std_logic_vector(3 downto 0);
         seg : out std_logic_vector(6 downto 0);
+        -- UART
         rsRx : in std_logic;
-        rsTx : out std_logic
+        rsTx : out std_logic;
+        -- SPI
+        miso: in std_logic;
+        mosi, sclk, ss_n : out std_logic
     );
 end component;
 begin
 uut : picoblaze_top port map(clk => clk, btnC => btnC, btnU => btnU, btnL => btnL, btnR => btnR, btnD => btnD,
-    sw => sw, led => led, dp => dp, an => an, seg => seg, rsRx => rsRx, rsTx => rsTx);
+    sw => sw, led => led, dp => dp, an => an, seg => seg, rsRx => rsRx, rsTx => rsTx, miso => miso, mosi => mosi,
+    sclk => sclk, ss_n => ss_n);
 process
 begin
     clk <= not clk;
