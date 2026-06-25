@@ -44,7 +44,7 @@ Signal w_strobe : std_logic;
 signal btnC_db, btnU_db, btnL_db, btnR_db, btnD_db : std_logic;
 
 -- Registers
-signal en_o : std_logic_vector(6 downto 0);
+signal en_o : std_logic_vector(4 downto 0);
 
 -- Leds
 signal led_reg : std_logic_vector(15 downto 0);
@@ -64,9 +64,8 @@ signal timer_int : std_logic;
 signal tim0_counter : std_logic_vector(31 downto 0);
 
 -- SPI
-signal spi_tx, spi_rx : std_logic_vector(7 downto 0);
-signal spi_config : std_logic_vector(2 downto 0);
-signal spi_busy : std_logic;
+signal spi_in_port : std_logic_vector(7 downto 0);
+
 
 -- Components
 component kcpsm6 is
@@ -172,16 +171,13 @@ component spi is
     ); 
     port(
         clk, reset : in std_logic;
-        enable : in std_logic;                            --initiate communication
-        cpol : in std_logic;  							  --clock polarity mode
-        cpha : in std_logic;  						      --clock phase mode
+        w_strobe, r_strobe : in std_logic;
+        out_port, port_id : in std_logic_vector(7 downto 0);
+        in_port : out std_logic_vector(7 downto 0);
         miso : in std_logic;                              --master in slave out
         sclk : out std_logic;                             --spi clock
         ss_n : out std_logic;                             --slave select
-        mosi : out std_logic;                             --master out slave in
-        busy : out std_logic;                             --master busy signal
-        tx : in std_logic_vector(data_length-1 downto 0);  --data to transmit
-        rx : out std_logic_vector(data_length-1 downto 0) --data received
+        mosi : out std_logic                             --master out slave insignal
     );
 end component;
 
@@ -333,39 +329,36 @@ spi0: spi
     port map(
         clk => clk,
         reset => kcpsm6_reset,
-        enable => spi_config(0),
-        cpol => spi_config(1),
-        cpha => spi_config(2),
+        w_strobe => w_strobe,
+        r_strobe => read_strobe,
+        out_port => out_port,
+        port_id => decode_port_id,
+        in_port => spi_in_port,
         miso => miso,
         sclk => sclk,
         ss_n => ss_n,
-        mosi => mosi,
-        busy => spi_busy,
-        tx => spi_tx,
-        rx => spi_rx 
+        mosi => mosi
     );
 
-decode_port_id <= port_id when write_strobe = '1' else x"0" & port_id(3 downto 0) when k_write_strobe = '1' else x"00";
+decode_port_id <= port_id when write_strobe = '1' or read_strobe = '1' else x"0" & port_id(3 downto 0) when k_write_strobe = '1' else x"00";
 w_strobe <= k_write_strobe or write_strobe;
 output_interface: process(w_strobe, decode_port_id)
 begin
     en_o <= (others => '0');
     if (w_strobe = '1') then
         case decode_port_id is
-            when x"00" => en_o <= "0000001"; -- led 7-0
-            when x"01" => en_o <= "0000010"; -- led 15-8
-            when x"02" => en_o <= "0000100"; -- tx uart
-            when x"03" => en_o <= "0001000"; -- 7seg LSB
-            when x"04" => en_o <= "0010000"; -- 7seg MSB
-            when x"0A" => en_o <= "0100000"; -- spi config
-            when x"0B" => en_o <= "1000000"; -- spi tx
-            when others => en_o <= "0000000";
+            when x"00" => en_o <= "00001"; -- led 7-0
+            when x"01" => en_o <= "00010"; -- led 15-8
+            when x"02" => en_o <= "00100"; -- tx uart
+            when x"03" => en_o <= "01000"; -- 7seg LSB
+            when x"04" => en_o <= "10000"; -- 7seg MSB
+            when others => en_o <= "00000";
         end case;
     end if;
 end process;
 wr_uart <= en_o(2);
 
-input_interface: process(port_id, sw, r_data, tx_full, rx_empty, tim0_counter, spi_rx)
+input_interface: process(port_id, sw, r_data, tx_full, rx_empty, tim0_counter, spi_in_port)
 begin
     case port_id is
         when x"00" => in_port <= sw(7 downto 0);
@@ -376,8 +369,8 @@ begin
         when x"05" => in_port <= tim0_counter(15 downto 8);
         when x"06" => in_port <= tim0_counter(23 downto 16);
         when x"07" => in_port <= tim0_counter(31 downto 24);
-        when x"08" => in_port <= "0000000" & spi_busy;
-        when x"09" => in_port <= spi_rx;
+        when x"08" => in_port <= spi_in_port;
+        when x"09" => in_port <= spi_in_port;
         when others => in_port <= x"00";
     end case;
 end process;
@@ -389,8 +382,6 @@ begin
         if (en_o(1) = '1') then led(15 downto 8) <= out_port; end if;
         if (en_o(3) = '1') then bin_7seg_reg(7 downto 0) <= out_port; end if;
         if (en_o(4) = '1') then bin_7seg_reg(13 downto 8) <= out_port(5 downto 0); end if;
-        if (en_o(5) = '1') then spi_config <= out_port(2 downto 0); end if;
-        if (en_o(6) = '1') then spi_tx <= out_port; end if;
     end if;
 end process;
 

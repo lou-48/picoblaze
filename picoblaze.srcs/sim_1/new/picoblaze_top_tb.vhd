@@ -53,6 +53,7 @@ begin
 end process;
 
 sw <= x"8000";
+miso <= mosi;
 
 
 end Behavioral;
