@@ -4,10 +4,11 @@ use IEEE.STD_LOGIC_1164.ALL;
 entity picoblaze_top is
     port(
         clk : in std_logic;
+        -- GPIO
         btnC, btnU, btnL, btnR, btnD : in std_logic;
         sw : in std_logic_vector(15 downto 0);
         led : out std_logic_vector(15 downto 0);
-        --7seg
+        -- 7seg
         dp : out std_logic;
         an : out std_logic_vector(3 downto 0);
         seg : out std_logic_vector(6 downto 0);
@@ -27,44 +28,44 @@ signal instruction : std_logic_vector(17 downto 0);
 signal bram_enable : std_logic;
 signal in_port : std_logic_vector(7 downto 0);
 signal out_port : std_logic_vector(7 downto 0);
-Signal port_id : std_logic_vector(7 downto 0);
-Signal write_strobe : std_logic;
-Signal k_write_strobe : std_logic;
-Signal read_strobe : std_logic;
-Signal interrupt : std_logic;
-Signal interrupt_ack : std_logic;
-Signal kcpsm6_sleep : std_logic;
-Signal kcpsm6_reset : std_logic;
-Signal rdl : std_logic;
+signal port_id : std_logic_vector(7 downto 0);
+signal write_strobe : std_logic;
+signal k_write_strobe : std_logic;
+signal read_strobe : std_logic;
+signal interrupt : std_logic;
+signal interrupt_ack : std_logic;
+signal kcpsm6_sleep : std_logic;
+signal kcpsm6_reset : std_logic;
+signal rdl : std_logic;
 
-Signal decode_port_id : std_logic_vector(7 downto 0);
-Signal w_strobe : std_logic;
+signal decode_port_id : std_logic_vector(7 downto 0);
+signal w_strobe : std_logic;
 
 -- Debounce
 signal btnC_db, btnU_db, btnL_db, btnR_db, btnD_db : std_logic;
 
--- Registers
+-- Output demux
 signal en_o : std_logic_vector(4 downto 0);
 
 -- Leds
 signal led_reg : std_logic_vector(15 downto 0);
 
 -- Uart
-signal r_data : std_logic_vector(7 downto 0);
-signal rd_uart, rx_not_empty, rx_empty : std_logic;
-signal wr_uart, tx_full : std_logic;
+signal uart0_r_data : std_logic_vector(7 downto 0);
+signal uart0_rd, uart0_rx_empty : std_logic;
+signal uart0_wr, uart0_tx_full : std_logic;
 
 -- 7seg
-signal bin_7seg_reg : std_logic_vector(13 downto 0);
+signal seg_bin_reg : std_logic_vector(13 downto 0);
 
 -- Interrupts
-signal timer_int : std_logic;
+signal tim0_int : std_logic;
 
 -- Timer
 signal tim0_counter : std_logic_vector(31 downto 0);
 
 -- SPI
-signal spi_in_port : std_logic_vector(7 downto 0);
+signal spi0_in_port : std_logic_vector(7 downto 0);
 
 
 -- Components
@@ -92,7 +93,7 @@ component picoblaze_rom is
     generic(C_FAMILY : string := "S6";
         C_RAM_SIZE_KWORDS : integer := 1;
         C_JTAG_LOADER_ENABLE : integer := 0);
-    Port (address : in std_logic_vector(11 downto 0);
+    port(address : in std_logic_vector(11 downto 0);
         instruction : out std_logic_vector(17 downto 0);
         enable : in std_logic;
         rdl : out std_logic;                    
@@ -101,47 +102,42 @@ end component;
 
 component debouncer is
     generic(
-        delay : integer := 1000000
-    );
+        delay : integer := 1000000);
     port(
         clk : in std_logic;
         button : in std_logic;
-        debounce : out std_logic
-    );
+        debounce : out std_logic);
 end component;
 
 component uart is
     generic(
     -- Default setting :
     -- 9600 baud, 8 data bits , 1 stop bit, 2^2 FIFO
-    DBIT : integer := 8; -- # data bits
+    DBIT : integer := 8;    -- # data bits
     SB_TICK: integer := 16; -- # ticks for stop bits, 16/24/32
-                            -- for 1/1.5/2 stop bits
-    DVSR: integer := 651; -- baud rate divisor
-                          -- DVSR = 100M/(16*baud rate)
+                                -- for 1/1.5/2 stop bits
+    DVSR: integer := 651;   -- baud rate divisor
+                                -- DVSR = 100M/(16*baud rate)
     DVSR_BIT: integer := 8; -- # bits of DVSR
-    FIFO_W: integer := 2 -- # addr bits of FIFO
-                         -- # words in FIFO=2^FIFO-W
-    );
-    port (
+    FIFO_W: integer := 2);  -- # addr bits of FIFO
+                                -- # words in FIFO=2^FIFO-W
+    port(
         clk, reset: in std_logic;
         rd_uart , wr_uart : in std_logic;
         rx: in std_logic;
         w_data: in std_logic_vector(7 downto 0);
         tx_full, rx_empty: out std_logic;
         r_data: out std_logic_vector(7 downto 0);
-        tx: out std_logic
-    ); 
+        tx: out std_logic); 
 end component;
 
 component seg7 is
-    port (
+    port(
         clk, reset : in std_logic;
         value : in std_logic_vector(13 downto 0);
         dp : out std_logic;
         an : out std_logic_vector(3 downto 0);
-        seg : out std_logic_vector(6 downto 0)
-    );
+        seg : out std_logic_vector(6 downto 0));
 end component;
 
 component timer is
@@ -150,8 +146,7 @@ component timer is
         w_strobe : in std_logic;
         port_id, out_port : in std_logic_vector(7 downto 0);
         counter_r : out std_logic_vector(31 downto 0);
-        interrupt_flag : out std_logic
-    );
+        interrupt_flag : out std_logic);
 end component;
 
 component flag_buf is
@@ -159,26 +154,23 @@ component flag_buf is
         clk, reset: in std_logic;
         clr_flag : in std_logic;
         D : in std_logic;
-        Q : out std_logic
-    );
+        Q : out std_logic);
 end component;
 
 component spi is
     generic(
         data_length : INTEGER := 8;
-        DVSR: integer := 100; -- baud rate divisor  -- DVSR = 100M/(2*baud rate)
-        DVSR_BIT: integer := 8 -- # bits of DVSR
-    ); 
+        DVSR: integer := 100;       -- baud rate divisor  -- DVSR = 100M/(2*baud rate)
+        DVSR_BIT: integer := 8);    -- # bits of DVSR
     port(
         clk, reset : in std_logic;
         w_strobe, r_strobe : in std_logic;
         out_port, port_id : in std_logic_vector(7 downto 0);
         in_port : out std_logic_vector(7 downto 0);
-        miso : in std_logic;                              --master in slave out
-        sclk : out std_logic;                             --spi clock
-        ss_n : out std_logic;                             --slave select
-        mosi : out std_logic                             --master out slave insignal
-    );
+        miso : in std_logic;                              -- master in slave out
+        sclk : out std_logic;                             -- spi clock
+        ss_n : out std_logic;                             -- slave select
+        mosi : out std_logic);                            -- master out slave insignal
 end component;
 
 begin
@@ -215,90 +207,77 @@ rom: picoblaze_rom
         
 db_btnC: debouncer
     generic map(
-        delay => 1000000
-    )
+        delay => 1000000)
     port map(
         clk => clk,
         button => btnC,
-        debounce => btnC_db
-    );
+        debounce => btnC_db);
 
 db_btnU: debouncer
     generic map(
-        delay => 1000000
-    )
+        delay => 1000000)
     port map(
         clk => clk,
         button => btnU,
-        debounce => btnU_db
-    );
+        debounce => btnU_db);
 
 db_btnL: debouncer
     generic map(
-        delay => 1000000
-    )
+        delay => 1000000)
     port map(
         clk => clk,
         button => btnL,
-        debounce => btnL_db
-    );
+        debounce => btnL_db);
 
 db_btnR: debouncer
     generic map(
-        delay => 1000000
-    )
+        delay => 1000000)
     port map(
         clk => clk,
         button => btnR,
-        debounce => btnR_db
-    );
+        debounce => btnR_db);
 
 db_btnD: debouncer
     generic map(
-        delay => 1000000
-    )
+        delay => 1000000)
     port map(
         clk => clk,
         button => btnD,
-        debounce => btnD_db
-    );
+        debounce => btnD_db);
 
-uart_interface: uart
+uart0: uart
     generic map(
     -- Default setting :
     -- 115200 baud, 8 data bits , 1 stop bit, 2^2 FIFO
-    DBIT => 8, -- # data bits
-    SB_TICK => 16, -- # ticks for stop bits, 16/24/32
+    DBIT => 8,          -- # data bits
+    SB_TICK => 16,      -- # ticks for stop bits, 16/24/32
                             -- for 1/1.5/2 stop bits
-    DVSR => 54, -- baud rate divisor
-                          -- DVSR = 100M/(16*baud rate)
-    DVSR_BIT => 8, -- # bits of DVSR
-    FIFO_W => 2 -- # addr bits of FIFO
-                         -- # words in FIFO=2^FIFO-W
-    )
+    DVSR => 54,         -- baud rate divisor
+                            -- DVSR = 100M/(16*baud rate)
+    DVSR_BIT => 8,      -- # bits of DVSR
+    FIFO_W => 2)        -- # addr bits of FIFO
+                            -- # words in FIFO=2^FIFO-W
     port map(
         clk => clk, 
         reset => kcpsm6_reset, 
-        rd_uart => rd_uart, 
-        wr_uart => wr_uart,
+        rd_uart => uart0_rd, 
+        wr_uart => uart0_wr,
         rx => rsRx, 
         w_data => out_port,
-        tx_full => tx_full, 
-        rx_empty => rx_empty,
-        r_data => r_data,
-        tx => rsTX
-    );
-rd_uart <= '1' when read_strobe = '1' and port_id = x"02" else '0';
+        tx_full => uart0_tx_full, 
+        rx_empty => uart0_rx_empty,
+        r_data => uart0_r_data,
+        tx => rsTx);
+uart0_rd <= '1' when read_strobe = '1' and port_id = x"02" else '0';
 
-segment : seg7
+seg0 : seg7
     port map(
         clk => clk, 
         reset => kcpsm6_reset,
-        value => bin_7seg_reg,
+        value => seg_bin_reg,
         dp => dp,
         an => an,
-        seg => seg
-    );
+        seg => seg);
 
 tim0 : timer
     port map(
@@ -308,24 +287,21 @@ tim0 : timer
         port_id => decode_port_id,
         out_port => out_port,
         counter_r => tim0_counter,
-        interrupt_flag => timer_int
-    );
+        interrupt_flag => tim0_int);
 
 closed_loop_interrupt : flag_buf
     port map(
         clk => clk,
         reset => kcpsm6_reset,
         clr_flag => interrupt_ack,
-        D => timer_int,
-        Q => interrupt
-    );
+        D => tim0_int,
+        Q => interrupt);
 
 spi0: spi
     generic map(
         data_length => 8,
-        DVSR => 50, -- baud rate divisor  -- DVSR = 100M/(2*baud rate) -> 1MHz
-        DVSR_BIT => 8 -- # bits of DVSR
-    )
+        DVSR => 50,         -- baud rate divisor  -- DVSR = 100M/(2*baud rate) -> 1MHz
+        DVSR_BIT => 8)      -- # bits of DVSR
     port map(
         clk => clk,
         reset => kcpsm6_reset,
@@ -333,15 +309,16 @@ spi0: spi
         r_strobe => read_strobe,
         out_port => out_port,
         port_id => decode_port_id,
-        in_port => spi_in_port,
+        in_port => spi0_in_port,
         miso => miso,
         sclk => sclk,
         ss_n => ss_n,
-        mosi => mosi
-    );
+        mosi => mosi);
 
+-- Generate the correct port id depending of the strobe
 decode_port_id <= port_id when write_strobe = '1' or read_strobe = '1' else x"0" & port_id(3 downto 0) when k_write_strobe = '1' else x"00";
 w_strobe <= k_write_strobe or write_strobe;
+
 output_interface: process(w_strobe, decode_port_id)
 begin
     en_o <= (others => '0');
@@ -356,21 +333,22 @@ begin
         end case;
     end if;
 end process;
-wr_uart <= en_o(2);
+uart0_wr <= en_o(2);
 
-input_interface: process(port_id, sw, r_data, tx_full, rx_empty, tim0_counter, spi_in_port)
+input_interface: process(port_id, sw, uart0_r_data, uart0_tx_full, uart0_rx_empty, tim0_counter, spi0_in_port, btnU_db, btnD_db, btnL_db, btnR_db)
 begin
     case port_id is
         when x"00" => in_port <= sw(7 downto 0);
         when x"01" => in_port <= sw(15 downto 8);
-        when x"02" => in_port <= r_data;
-        when x"03" => in_port <= "000000" & tx_full & rx_empty;
+        when x"02" => in_port <= uart0_r_data;
+        when x"03" => in_port <= "000000" & uart0_tx_full & uart0_rx_empty;
         when x"04" => in_port <= tim0_counter(7 downto 0);
         when x"05" => in_port <= tim0_counter(15 downto 8);
         when x"06" => in_port <= tim0_counter(23 downto 16);
         when x"07" => in_port <= tim0_counter(31 downto 24);
-        when x"08" => in_port <= spi_in_port;
-        when x"09" => in_port <= spi_in_port;
+        when x"08" => in_port <= spi0_in_port;
+        when x"09" => in_port <= spi0_in_port;
+        when x"0A" => in_port <= "0000" & btnU_db & btnD_db & btnL_db & btnR_db;
         when others => in_port <= x"00";
     end case;
 end process;
@@ -380,8 +358,8 @@ begin
     if (rising_edge(clk)) then
         if (en_o(0) = '1') then led(7 downto 0) <= out_port; end if;
         if (en_o(1) = '1') then led(15 downto 8) <= out_port; end if;
-        if (en_o(3) = '1') then bin_7seg_reg(7 downto 0) <= out_port; end if;
-        if (en_o(4) = '1') then bin_7seg_reg(13 downto 8) <= out_port(5 downto 0); end if;
+        if (en_o(3) = '1') then seg_bin_reg(7 downto 0) <= out_port; end if;
+        if (en_o(4) = '1') then seg_bin_reg(13 downto 8) <= out_port(5 downto 0); end if;
     end if;
 end process;
 

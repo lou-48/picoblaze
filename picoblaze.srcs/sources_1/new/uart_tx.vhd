@@ -4,17 +4,15 @@ use ieee.numeric_std.all;
 
 entity uart_tx is
     generic(
-        DBIT : integer := 8 ; -- # data bits
-        SB_TICK: integer := 16 -- # ticks for stop bits
-        );
-    port (
+        DBIT : integer := 8 ;       -- # data bits
+        SB_TICK: integer := 16);    -- # ticks for stop bits
+    port(
         clk, reset: in std_logic;
         tx_start : in std_logic;
         s_tick: in std_logic ;
         din: in std_logic_vector(7 downto 0);
         tx_done_tick: out std_logic;
-        tx: out std_logic
-    ); 
+        tx: out std_logic); 
 end uart_tx;
 
 architecture Behavioral of uart_tx is

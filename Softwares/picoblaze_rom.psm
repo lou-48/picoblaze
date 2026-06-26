@@ -1,46 +1,55 @@
 ; picoblaze main - v0.0
 
 ; INPUT ports
-constant sw7_0_port,			00
-constant sw15_8_port,			01
-constant rx_uart_port,			02
-constant status_uart_port,		03
-constant tim0_counter_b0_port,	04 ; LSB
-constant tim0_counter_b1_port,	05
-constant tim0_counter_b2_port,	06
-constant tim0_counter_b3_port,	07 ; MSB
-constant spi0_status_port,		08
-constant spi0_rx_port,			09 
+constant sw_7_0_port,				00
+constant sw_15_8_port,				01
+constant uart0_rx_port,				02
+constant uart0_status_port,			03
+constant tim0_counter_b0_port,		04 ; LSB
+constant tim0_counter_b1_port,		05
+constant tim0_counter_b2_port,		06
+constant tim0_counter_b3_port,		07 ; MSB
+constant spi0_status_port,			08
+constant spi0_rx_port,				09 
+constant pb_port,					0A 
 
 ; OUTPUT ports
-constant leds7_0_port,			00
-constant leds15_8_port,			01
-constant tx_uart_port,			02
-constant 7seg_lsb_port,			03
-constant 7seg_msb_port,			04
-constant tim0_config_port,		05
-constant tim0_preload_b0_port,	06 ; LSB
-constant tim0_preload_b1_port,	07
-constant tim0_preload_b2_port,	08
-constant tim0_preload_b3_port,	09 ; MSB
-constant spi_config_port,		0A
-constant spi_len_port,			0B
-constant spi_tx_port,			0C
+constant leds7_0_port,				00
+constant leds15_8_port,				01
+constant tx_uart_port,				02
+constant 7seg_lsb_port,				03
+constant 7seg_msb_port,				04
+constant tim0_config_port,			05
+constant tim0_preload_b0_port,		06 ; LSB
+constant tim0_preload_b1_port,		07
+constant tim0_preload_b2_port,		08
+constant tim0_preload_b3_port,		09 ; MSB
+constant spi_config_port,			0A
+constant spi_len_port,				0B
+constant spi_tx_port,				0C
 
 ; MASKS
-constant RX_EMPTY_UART,			01
-constant TX_FULL_UART,			02
-constant MODE_SEL,				80
-constant TIM0_EN,				01
-constant TIM0_INT_EN,			02
-constant TIM0_PRESCALER_MASK,	F0
-constant TIM0_config,			07 ; prescaler = 1, ARR = ON, INT = ON, EN = ON
-constant TIM0_preload_b0,		FF ; equivalent to 99_999_999 in decimal @ 100MHz -> tick = 1s
-constant TIM0_preload_b1,		E0
-constant TIM0_preload_b2,		F5
-constant TIM0_preload_b3,		05
-constant SPI0_BUSY,				01
-constant SPI0_RX_EMPTY,			04
+; Project
+constant BASYS_MODE_SEL,			80
+; UART0
+constant UART0_STATUS_RX_EMPTY,		01
+constant UART0_STATUS_TX_FULL,		02
+; TIMER0
+constant TIM0_CFG_EN,				01
+constant TIM0_CFG_INT_EN,			02
+constant TIM0_CFG_PRESCALER_MASK,	F0
+constant TIM0_config,				07 ; prescaler = 1, ARR = ON, INT = ON, EN = ON
+constant TIM0_preload_b0,			FF ; equivalent to 99_999_999 in decimal @ 100MHz -> tick = 1s
+constant TIM0_preload_b1,			E0
+constant TIM0_preload_b2,			F5
+constant TIM0_preload_b3,			05
+; SPI0
+constant SPI0_CFG_EN,				01
+constant SPI0_CFG_CPOL,				02
+constant SPI0_CFG_CPHA,				04
+constant SPI0_STATUS_BUSY,			01
+constant SPI0_STATUS_TX_FULL,		02
+constant SPI0_STATUS_RX_EMPTY,		04
 
 ; NAMEREGS
 namereg sE, counter_lsb
@@ -49,74 +58,64 @@ namereg sF, counter_msb
 ; TABLES
 TABLE spi_frame#, [53, 50, 49]
 
+; STRINGS
+STRING Hello$, "Hello"
+; CHARACTERS
+constant LINE_FEED,		0A
+constant CARRIAGE_RET,	0D
+constant NULL,			00
+
 main:
-	outputk spi_frame#, spi_tx_port
-	outputk 03, spi_len_port
-	outputk 01, spi_config_port
-spi_busy:
-	input s0, spi0_status_port
-	test s0, SPI0_BUSY
-	jump nz, spi_busy
-spi_read:
-	input s1, spi0_rx_port
-	call send_uart
-	input s0, spi0_status_port
-	test s0, SPI0_RX_EMPTY
-	jump z, spi_read
-	load sA, hello_message'lower
-	load sB, hello_message'upper
-	call send_string
+	call send_hello 		; Print 'Hello' on a serial terminal (115200 8N1)
+	call spi_send			; Send 'SPI' on spi0 and print the result on the uart 
+	call tim0_init			; Initialize and start the timer
+loop:
+	input s1, sw_15_8_port
+	test s1, BASYS_MODE_SEL ; Check sw15 to select between two modes
+	call nz, print_counter 	; Print a counter with 1sec tick on 7seg and leds
+	call z, print_sw		; Print the value of switches on 7seg and leds
+	call check_uart			; Check if a character is received
+	jump loop
+
+; TIMER FUNCTIONS
+tim0_init:
+	load counter_lsb, 00 ; Use 2 registers (sE, sF) to count the number of tick of the timer 
+	load counter_msb, 00
 	outputk TIM0_preload_b0, tim0_preload_b0_port
 	outputk TIM0_preload_b1, tim0_preload_b1_port
 	outputk TIM0_preload_b2, tim0_preload_b2_port
 	outputk TIM0_preload_b3, tim0_preload_b3_port
 	outputk TIM0_config, tim0_config_port
-	load counter_lsb, 00
-	load counter_msb, 00
-loop:
-	input s1, sw15_8_port
-	test s1, MODE_SEL
-	call nz, print_counter
-	call z, print_sw
-	call check_uart
-	jump loop
 
-
-
-; STRINGS
-constant LINE_FEED,		0A
-constant CARRIAGE_RET,	0D
-constant NULL		,	00
-
-STRING Hello$, "Hello"
-hello_message:
-	load&return s1, Hello$
-	load&return s1, CARRIAGE_RET
-	load&return s1, LINE_FEED
-	load&return s1, NULL
-
-check_uart:
-	input s0, status_uart_port
-	test s0, RX_EMPTY_UART
-	return nz
-	call read_uart
+; SPI FUNCTIONS
+spi_busy:
+	input s0, spi0_status_port
+	test s0, SPI0_STATUS_BUSY
+	jump nz, spi_busy
 	return
 
-read_uart:
-	input s0, rx_uart_port
-	compare s0, 61
-	return nz
+spi_send:
+	outputk spi_frame#, spi_tx_port ; Load 'S' 'P' 'I' into spi tx fifo 
+	outputk 03, spi_len_port		; Fix the lenght of the frame to 3
+	outputk 01, spi_config_port		; Initiate the transaction in mode 0 (cpol=0, cpha=0)
+	call spi_busy					; Wait the end of the transaction
+spi_read:
+	input s1, spi0_rx_port			; Read received bytes 
+	call send_uart					; Send them to the uart (for debug)
+	input s0, spi0_status_port		; Read SPI status
+	test s0, SPI0_STATUS_RX_EMPTY			; Check if rx fifo is empty
+	jump z, spi_read				; Continue reading if necessary
+	load s1, CARRIAGE_RET
+	call send_uart
+	load s1, LINE_FEED
+	call send_uart
+	return
+
+; STRINGS FUNCTIONS
+send_hello:
 	load sA, hello_message'lower
 	load sB, hello_message'upper
 	call send_string
-	return
-
-send_uart: 
-	input s0, status_uart_port
-	test s0, TX_FULL_UART
-	jump nz, send_uart
-	output s1, tx_uart_port
-	return
 
 send_string:
 	call@ (sB, sA)
@@ -127,10 +126,40 @@ send_string:
 	addcy sB, 00
 	jump send_string
 
+hello_message:
+	load&return s1, Hello$
+	load&return s1, CARRIAGE_RET
+	load&return s1, LINE_FEED
+	load&return s1, NULL
+
+; UART FUNCTIONS
+check_uart:
+	input s0, uart0_status_port
+	test s0, UART0_STATUS_RX_EMPTY
+	return nz
+	call read_uart
+	return
+
+read_uart:
+	input s0, uart0_rx_port
+	compare s0, 30 ; Character '0'
+	call z, send_hello
+	compare s0, 31 ; Character '1'
+	call z, spi_send
+	return
+
+send_uart: 
+	input s0, uart0_status_port
+	test s0, UART0_STATUS_TX_FULL
+	jump nz, send_uart
+	output s1, tx_uart_port
+	return
+
+; GPIO FUNCTIONS
 print_sw:
 	disable interrupt
-	input s0, sw7_0_port
-	input s1, sw15_8_port
+	input s0, sw_7_0_port
+	input s1, sw_15_8_port
 	output s0, leds7_0_port
 	output s1, leds15_8_port
 	output s0, 7seg_lsb_port
@@ -148,12 +177,10 @@ print_counter:
 
 error_handler: jump error_handler
 
-
 isr:
-	add counter_lsb, 01
+	add counter_lsb, 01		; Increment the counter
 	addcy counter_msb, 00
 	returni disable
-
 
 address 3FF
 jump isr

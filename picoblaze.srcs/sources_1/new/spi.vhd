@@ -5,19 +5,17 @@ use ieee.numeric_std.all;
 entity spi is
     generic(
         data_length : INTEGER := 8;
-        DVSR: integer := 100; -- baud rate divisor  -- DVSR = 100M/(2*baud rate)
-        DVSR_BIT: integer := 8 -- # bits of DVSR
-    ); 
+        DVSR: integer := 100;       -- baud rate divisor  -- DVSR = 100M/(2*baud rate)
+        DVSR_BIT: integer := 8);    -- # bits of DVSR
     port(
         clk, reset : in std_logic;
         w_strobe, r_strobe : in std_logic;
         out_port, port_id : in std_logic_vector(7 downto 0);
         in_port : out std_logic_vector(7 downto 0);
-        miso : in std_logic;                              --master in slave out
-        sclk : out std_logic;                             --spi clock
-        ss_n : out std_logic;                             --slave select
-        mosi : out std_logic                             --master out slave insignal
-    );
+        miso : in std_logic;                              -- master in slave out
+        sclk : out std_logic;                             -- spi clock
+        ss_n : out std_logic;                             -- slave select
+        mosi : out std_logic);                            -- master out slave insignal
 end spi;
 
 architecture Behavioral of spi is
@@ -50,28 +48,24 @@ signal rx_byte_done : std_logic;
 
 component mod_m_counter is
     generic(
-        N: integer := 4; -- number of bits
-        M: integer := 10 -- mod4
-    );
-    port (
+        N: integer := 4;    -- number of bits
+        M: integer := 10);  -- mod4
+    port(
         clk, reset: in std_logic;
         max_tick: out std_logic;
-        q: out std_logic_vector (N-1 downto 0)
-    ); 
+        q: out std_logic_vector (N-1 downto 0)); 
 end component;
 
 component fifo is
     generic(
-        B: natural := 8; -- number of bits
-        W: natural := 4 -- number of address bits
-    );
-    port (
-    clk, reset: in std_logic;
-    rd, wr: in std_logic;
-    w_data: in std_logic_vector(B-1 downto 0);
-    empty, full : out std_logic;
-    r_data: out std_logic_vector(B-1 downto 0)
-    );
+        B: natural := 8;    -- number of bits
+        W: natural := 4);   -- number of address bits
+    port(
+        clk, reset: in std_logic;
+        rd, wr: in std_logic;
+        w_data: in std_logic_vector(B-1 downto 0);
+        empty, full : out std_logic;
+        r_data: out std_logic_vector(B-1 downto 0));
 end component;
 
 begin
@@ -82,8 +76,7 @@ baud_gen_unit: mod_m_counter
 fifo_tx: fifo
     generic map(
         B => 8, -- number of bits
-        W => 5 -- number of address bits
-    )
+        W => 5) -- number of address bits
     port map(
         clk => clk,
         reset => reset,
@@ -92,15 +85,13 @@ fifo_tx: fifo
         w_data => out_port,
         empty => tx_empty,
         full => tx_full_sig,
-        r_data => tx_r_data
-    );
+        r_data => tx_r_data);
 tx_wr <= w_strobe when (port_id = x"0C") else '0';
 
 fifo_rx: fifo
     generic map(
         B => 8, -- number of bits
-        W => 5 -- number of address bits
-    )
+        W => 5) -- number of address bits
     port map(
         clk => clk,
         reset => reset,
@@ -109,14 +100,13 @@ fifo_rx: fifo
         w_data => r_data_reg,
         empty => rx_empty_sig,
         full => rx_full,
-        r_data => rx_r_data
-    );
+        r_data => rx_r_data);
 rx_rd <= r_strobe when (port_id = x"09") else '0';
 
 in_port <= rx_r_data when port_id = x"09" else
            "00000" & rx_empty_sig & tx_full_sig & busy;
            
-
+-- Synchro request with spi tick to read/write only once by FSM clock cycle
 tx_rd <= tx_rd_reg and spi_tick;
 rx_wr <= rx_wr_reg and spi_tick;
 
@@ -212,15 +202,15 @@ begin
                 r_data_next <= r_data_reg(data_length-2 downto 0) & miso;
             end if;
                         
-            if counter_reg = data_length*2+1 then
+            if counter_reg = data_length*2+1 then -- End of byte
                 rx_wr_next  <= '1';
                 counter_next <= 0;
-                if byte_cnt_reg = frame_len - 1 then
+                if byte_cnt_reg = frame_len - 1 then -- End of transmission
                     state_next <= idle;
                     byte_cnt_next <= 0;
                     ss_n <= '1';
                 else
-                    byte_cnt_next <= byte_cnt_reg + 1;
+                    byte_cnt_next <= byte_cnt_reg + 1; -- Next byte
                     tx_rd_next <= '1';
                     w_data_next <= tx_r_data;
                     spi_rw_next <= config_r(2);

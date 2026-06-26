@@ -4,13 +4,11 @@ use ieee.numeric_std.all;
 
 entity debouncer is
     generic(
-        delay : integer := 1000000
-    );
+        delay : integer := 1000000);
     port(
         clk : in std_logic;
         button : in std_logic;
-        debounce : out std_logic
-    );
+        debounce : out std_logic);
 end debouncer;
 
 architecture Behavioral of debouncer is

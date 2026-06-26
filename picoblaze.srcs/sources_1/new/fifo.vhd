@@ -4,16 +4,14 @@ use ieee.numeric_std.all;
 
 entity fifo is
     generic(
-        B: natural := 8; -- number of bits
-        W: natural := 4 -- number of address bits
-    );
-    port (
-    clk, reset: in std_logic;
-    rd, wr: in std_logic;
-    w_data: in std_logic_vector(B-1 downto 0);
-    empty, full : out std_logic;
-    r_data: out std_logic_vector(B-1 downto 0)
-    );
+        B: natural := 8;    -- number of bits
+        W: natural := 4);   -- number of address bits
+    port(
+        clk, reset: in std_logic;
+        rd, wr: in std_logic;
+        w_data: in std_logic_vector(B-1 downto 0);
+        empty, full : out std_logic;
+        r_data: out std_logic_vector(B-1 downto 0));
 end fifo;
 
 architecture Behavioral of fifo is

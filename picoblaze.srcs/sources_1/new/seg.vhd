@@ -8,8 +8,7 @@ entity seg7 is
         value : in std_logic_vector(13 downto 0);
         dp : out std_logic;
         an : out std_logic_vector(3 downto 0);
-        seg : out std_logic_vector(6 downto 0)
-    );
+        seg : out std_logic_vector(6 downto 0));
 end seg7;
 
 architecture Behavioral of seg7 is
@@ -21,13 +20,11 @@ signal bcd0, bcd1, bcd2, bcd3: std_logic_vector(3 downto 0);
 component binary_to_bcd is
     generic(
         N: positive := 16;
-        MAX_VAL : natural := 9999
-    );
+        MAX_VAL : natural := 9999);
     port(
         clk, reset: in std_logic;
         binary_in: in std_logic_vector(N-1 downto 0);
-        bcd0, bcd1, bcd2, bcd3: out std_logic_vector(3 downto 0)
-    );
+        bcd0, bcd1, bcd2, bcd3: out std_logic_vector(3 downto 0));
 end component;
 
 begin

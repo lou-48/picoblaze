@@ -4,14 +4,12 @@ use ieee.numeric_std.all;
 
 entity mod_m_counter is
     generic(
-        N: integer := 4; -- number of bits
-        M: integer := 10 -- mod4
-    );
-    port (
+        N: integer := 4;    -- number of bits
+        M: integer := 10);  -- mod4
+    port(
         clk, reset: in std_logic;
         max_tick: out std_logic;
-        q: out std_logic_vector (N-1 downto 0)
-    ); 
+        q: out std_logic_vector (N-1 downto 0)); 
 end mod_m_counter;
 
 architecture Behavioral of mod_m_counter is

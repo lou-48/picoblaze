@@ -8,8 +8,7 @@ entity timer is
         w_strobe : in std_logic;
         port_id, out_port : in std_logic_vector(7 downto 0);
         counter_r : out std_logic_vector(31 downto 0);
-        interrupt_flag : out std_logic
-    );
+        interrupt_flag : out std_logic);
 end timer;
 
 architecture Behavioral of timer is
@@ -70,8 +69,8 @@ begin
                     prescaler_next <= (others => '0');
                     if counter_reg = preload_reg then -- reach the preload value
                         counter_next <= (others => '0');
-                        if config_reg(2) = '0' then
-                            config_next(0) <= '0';
+                        if config_reg(2) = '0' then -- Auto reload enable ?
+                            config_next(0) <= '0'; -- Deactivate bit0 enable
                             state_next <= idle;
                         end if;
                     else
