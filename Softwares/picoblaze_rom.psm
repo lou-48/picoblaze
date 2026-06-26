@@ -16,7 +16,7 @@ constant pb_port,					0A
 ; OUTPUT ports
 constant leds7_0_port,				00
 constant leds15_8_port,				01
-constant tx_uart_port,				02
+constant uart0_tx_port,				02
 constant 7seg_lsb_port,				03
 constant 7seg_msb_port,				04
 constant tim0_config_port,			05
@@ -152,7 +152,7 @@ send_uart:
 	input s0, uart0_status_port
 	test s0, UART0_STATUS_TX_FULL
 	jump nz, send_uart
-	output s1, tx_uart_port
+	output s1, uart0_tx_port
 	return
 
 ; GPIO FUNCTIONS
