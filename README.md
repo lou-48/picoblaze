@@ -1,5 +1,5 @@
 # PicoBlaze FPGA SoC
-
+<!-- Add graph for explain state machine (spi, ...), note that it was develop at ulster for an internship -->
 A small educational System-on-Chip built around the Xilinx PicoBlaze (KCPSM6) soft-core processor on the basys 3 development board.
 
 The project demonstrates how to connect a PicoBlaze CPU to common FPGA peripherals through a memory-mapped I/O interface. It provides examples of:
@@ -384,6 +384,9 @@ The actual firmware is the program name `picoblaze_rom.psm` in the `Softwares` f
 The script will generate a file name `picoblaze_rom.vhd` from the assembly and the ROM template. This file is the vhdl description of the ROM of the projet with the program inside. To flash it into the board, you need to use it on the vivado project.
 
 Copy/replace the `picoblaze_rom.vhd` in `picoblaze.srcs/sources_1/imports/picoblaze/Softwares` by the new one. After that you need to regenerate the bitstream on vivado to take into account the new firmware. When the compilation of the bitstream is finish, connect to the board, program the device. The program will start automatically.
+
+# Example
+<!-- explain the actual program -->
 
 # Annexes
 * [Picoblaze official page](https://www.amd.com/en/products/adaptive-socs-and-fpgas/intellectual-property/picoblaze.html)
